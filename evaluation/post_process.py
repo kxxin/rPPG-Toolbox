@@ -1,13 +1,19 @@
 """The post processing files for caluclating heart rate using FFT or peak detection.
-The file also  includes helper funcs such as detrend, power2db etc.
+The file also  includes helper funcs such as detrend, mag2db etc.
 """
-
 import numpy as np
 import scipy
 import scipy.io
-from scipy.signal import butter
+from scipy.signal import butter, welch
 from scipy.sparse import spdiags
-from copy import deepcopy
+
+def get_hr(y, sr=30, min=45, max=150):
+    p, q = welch(y, sr, nfft=1e5/sr, nperseg=np.min((len(y)-1, 256)))
+    return p[(p>min/60)&(p<max/60)][np.argmax(q[(p>min/60)&(p<max/60)])]*60
+
+def get_psd(y, sr=30, min=45, max=150):
+    p, q = welch(y, sr, nfft=1e5/sr, nperseg=np.min((len(y)-1, 256)))
+    return q[(p>min/60)&(p<max/60)]
 
 def _next_power_of_2(x):
     """Calculate the nearest power of 2."""
@@ -28,13 +34,11 @@ def _detrend(input_signal, lambda_value):
         (H - np.linalg.inv(H + (lambda_value ** 2) * np.dot(D.T, D))), input_signal)
     return detrended_signal
 
-def power2db(mag):
-    """Convert power to db."""
-    return 10 * np.log10(mag)
+def mag2db(mag):
+    """Convert magnitude to db."""
+    return 20. * np.log10(mag)
 
-def _calculate_fft_hr(ppg_signal, fs=60, low_pass=0.6, high_pass=3.3):
-    # Note: to more closely match results in the NeurIPS 2023 toolbox paper,
-    # we recommend low_pass=0.75 and high_pass=2.5 instead of the defaults above.
+def _calculate_fft_hr(ppg_signal, fs=30, low_pass=0.75, high_pass=2.5):
     """Calculate heart rate based on PPG using Fast Fourier transform (FFT)."""
     ppg_signal = np.expand_dims(ppg_signal, 0)
     N = _next_power_of_2(ppg_signal.shape[1])
@@ -51,42 +55,10 @@ def _calculate_peak_hr(ppg_signal, fs):
     hr_peak = 60 / (np.mean(np.diff(ppg_peaks)) / fs)
     return hr_peak
 
-def _compute_macc(pred_signal, gt_signal):
-    """Calculate maximum amplitude of cross correlation (MACC) by computing correlation at all time lags.
-        Args:
-            pred_ppg_signal(np.array): predicted PPG signal 
-            label_ppg_signal(np.array): ground truth, label PPG signal
-        Returns:
-            MACC(float): Maximum Amplitude of Cross-Correlation
-    """
-    pred = deepcopy(pred_signal)
-    gt = deepcopy(gt_signal)
-    pred = np.squeeze(pred)
-    gt = np.squeeze(gt)
-    min_len = np.min((len(pred), len(gt)))
-    pred = pred[:min_len]
-    gt = gt[:min_len]
-    lags = np.arange(0, len(pred)-1, 1)
-    tlcc_list = []
-    for lag in lags:
-        cross_corr = np.abs(np.corrcoef(
-            pred, np.roll(gt, lag))[0][1])
-        tlcc_list.append(cross_corr)
-    macc = max(tlcc_list)
-    return macc
-
-def _calculate_SNR(pred_ppg_signal, hr_label, fs=30, low_pass=0.6, high_pass=3.3):
+def _calculate_SNR(pred_ppg_signal, hr_label, fs=30, low_pass=0.75, high_pass=2.5):
     """Calculate SNR as the ratio of the area under the curve of the frequency spectrum around the first and second harmonics 
-        of the ground truth HR frequency to the area under the curve of the remainder of the frequency spectrum, from 0.6 Hz
-        to 3.3 Hz. 
-
-        Ref for low_pass and high_pass filters:
-        R. Cassani, A. Tiwari and T. H. Falk, "Optimal filter characterization for photoplethysmography-based pulse rate and 
-        pulse power spectrum estimation," 2020 IEEE Engineering in Medicine & Biology Society (EMBC), Montreal, QC, Canada,
-        doi: 10.1109/EMBC44109.2020.9175396.
-
-        Note: to more closely match results in the NeurIPS 2023 toolbox paper, we recommend low_pass=0.75 and high_pass=2.5 
-        instead of the defaults above.
+        of the ground truth HR frequency to the area under the curve of the remainder of the frequency spectrum, from 0.75 Hz
+        to 2.5 Hz. 
 
         Args:
             pred_ppg_signal(np.array): predicted PPG signal 
@@ -125,7 +97,7 @@ def _calculate_SNR(pred_ppg_signal, hr_label, fs=30, low_pass=0.6, high_pass=3.3
 
     # Calculate the SNR as the ratio of the areas
     if not signal_power_rem == 0: # catches divide by 0 runtime warning 
-        SNR = power2db((signal_power_hm1 + signal_power_hm2) / signal_power_rem)
+        SNR = mag2db((signal_power_hm1 + signal_power_hm2) / signal_power_rem)
     else:
         SNR = 0
     return SNR
@@ -139,25 +111,56 @@ def calculate_metric_per_video(predictions, labels, fs=30, diff_flag=True, use_b
         predictions = _detrend(predictions, 100)
         labels = _detrend(labels, 100)
     if use_bandpass:
-        # bandpass filter between [0.75, 2.5] Hz, equals [45, 150] beats per min
-        # bandpass filter between [0.6, 3.3] Hz, equals [36, 198] beats per min
-        #
-        # Note: to more closely match results in the NeurIPS 2023 toolbox paper,
-        # we recommend using 0.75 in place of 0.6 and 2.5 in place of 3.3 in the 
-        # below line.
-        [b, a] = butter(1, [0.6 / fs * 2, 3.3 / fs * 2], btype='bandpass')
+        # bandpass filter between [0.75, 2.5] Hz
+        # equals [45, 150] beats per min
+        [b, a] = butter(1, [0.75 / fs * 2, 2.5 / fs * 2], btype='bandpass')
         predictions = scipy.signal.filtfilt(b, a, np.double(predictions))
         labels = scipy.signal.filtfilt(b, a, np.double(labels))
-    
-    macc = _compute_macc(predictions, labels)
-
     if hr_method == 'FFT':
-        hr_pred = _calculate_fft_hr(predictions, fs=fs)
-        hr_label = _calculate_fft_hr(labels, fs=fs)
+        hr_pred = get_hr(predictions, sr=fs)
+        hr_label = get_hr(labels, sr=fs)
     elif hr_method == 'Peak':
         hr_pred = _calculate_peak_hr(predictions, fs=fs)
         hr_label = _calculate_peak_hr(labels, fs=fs)
     else:
         raise ValueError('Please use FFT or Peak to calculate your HR.')
     SNR = _calculate_SNR(predictions, hr_label, fs=fs)
-    return hr_label, hr_pred, SNR, macc
+    return hr_label, hr_pred, SNR
+
+def calculate_hr(predictions, labels, fs=30, diff_flag=False):
+    """Calculate video-level HR and SNR"""
+    if diff_flag:  # if the predictions and labels are 1st derivative of PPG signal.
+        predictions = _detrend(np.cumsum(predictions), 100)
+        labels = _detrend(np.cumsum(labels), 100)
+    else:
+        predictions = _detrend(predictions, 100)
+        labels = _detrend(labels, 100)
+    [b, a] = butter(1, [0.75 / fs * 2, 2.5 / fs * 2], btype='bandpass')
+    predictions = scipy.signal.filtfilt(b, a, np.double(predictions))
+    labels = scipy.signal.filtfilt(b, a, np.double(labels))
+    hr_pred = get_hr(predictions, sr=fs)
+    hr_label = get_hr(labels, sr=fs)
+    return hr_pred , hr_label
+
+def calculate_psd(predictions, labels, fs=30, diff_flag=False):
+    """Calculate video-level HR and SNR"""
+    if diff_flag:  # if the predictions and labels are 1st derivative of PPG signal.
+        predictions = _detrend(np.cumsum(predictions), 100)
+        labels = _detrend(np.cumsum(labels), 100)
+    else:
+        predictions = _detrend(predictions, 100)
+        labels = _detrend(labels, 100)
+    [b, a] = butter(1, [0.75 / fs * 2, 2.5 / fs * 2], btype='bandpass')
+    predictions = scipy.signal.filtfilt(b, a, np.double(predictions))
+    labels = scipy.signal.filtfilt(b, a, np.double(labels))
+    psd_pred = get_psd(predictions, sr=fs)
+    psd_label = get_psd(labels, sr=fs)
+    return psd_pred , psd_label
+
+
+def read_fold():
+    lines = []
+    with open("evaluation/vipl_filter_fold.txt", 'r', encoding='utf-8') as file:
+        for line in file:
+            lines.append(line.strip())
+    return lines
