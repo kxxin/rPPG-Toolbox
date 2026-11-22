@@ -1,0 +1,126 @@
+BASE:
+- ''
+TOOLBOX_MODE: train_and_test
+TRAIN:
+  BATCH_SIZE: 4
+  EPOCHS: 30
+  LR: 3e-4
+  MODEL_FILE_NAME: UBFC_UBFC_BiMambaPhys_Dual2StageRMSpeedAugPinned
+  PLOT_LOSSES_AND_LR: true
+  DATA:
+    FS: 30
+    DATASET: UBFC-rPPG
+    DO_PREPROCESS: false
+    DATA_FORMAT: NCDHW
+    DATA_PATH: /home/user/24020695/data/UBFC-rPPG
+    CACHED_PATH: /home/user/24020695/PreprocessedData
+    FILE_LIST_PATH: /home/user/24020695/PreprocessedData/splits/UBFC-rPPG_intra_train.csv
+    EXP_DATA_NAME: experiment00
+    BEGIN: 0.0
+    END: 0.72
+    PREPROCESS:
+      DATA_TYPE:
+      - Standardized
+      DATA_AUG:
+      - None
+      LABEL_TYPE: Standardized
+      DO_CHUNK: true
+      CHUNK_LENGTH: 160
+      CROP_FACE:
+        DO_CROP_FACE: true
+        BACKEND: HC
+        USE_LARGE_FACE_BOX: true
+        LARGE_BOX_COEF: 1.5
+        DETECTION:
+          DO_DYNAMIC_DETECTION: false
+          DYNAMIC_DETECTION_FREQUENCY: 30
+          USE_MEDIAN_FACE_BOX: false
+      RESIZE:
+        H: 128
+        W: 128
+  SPEED_AUG:
+    ENABLE: true
+    PROB: 0.5
+    TARGET_HR_MIN: 40.0
+    TARGET_HR_MAX: 160.0
+    MIN_FACTOR: 0.5
+    MAX_FACTOR: 2.2
+TEST:
+  METRICS:
+  - MAE
+  - RMSE
+  - MAPE
+  - Pearson
+  - SNR
+  - BA
+  USE_LAST_EPOCH: true
+  DATA:
+    FS: 30
+    DATASET: UBFC-rPPG
+    DO_PREPROCESS: false
+    DATA_FORMAT: NCDHW
+    DATA_PATH: /home/user/24020695/data/UBFC-rPPG
+    CACHED_PATH: /home/user/24020695/PreprocessedData
+    FILE_LIST_PATH: /home/user/24020695/PreprocessedData/splits/UBFC-rPPG_intra_test.csv
+    EXP_DATA_NAME: experiment00
+    BEGIN: 0.72
+    END: 1.0
+    PREPROCESS:
+      DATA_TYPE:
+      - Standardized
+      DATA_AUG:
+      - None
+      LABEL_TYPE: Standardized
+      DO_CHUNK: true
+      CHUNK_LENGTH: 160
+      CROP_FACE:
+        DO_CROP_FACE: true
+        BACKEND: HC
+        USE_LARGE_FACE_BOX: true
+        LARGE_BOX_COEF: 1.5
+        DETECTION:
+          DO_DYNAMIC_DETECTION: false
+          DYNAMIC_DETECTION_FREQUENCY: 30
+          USE_MEDIAN_FACE_BOX: false
+      RESIZE:
+        H: 128
+        W: 128
+DEVICE: cuda:0
+NUM_OF_GPU_TRAIN: 1
+NUM_WORKERS: 4
+LOG:
+  PATH: runs/exp/pinned_dual12_2stage_rm_speedaug_seed300
+MODEL:
+  NAME: BiMambaPhys
+  BIMAMBAPHYS:
+    DUAL_PATH: true
+    STAGE1_EPOCHS: 15
+    DIM: 64
+    DEPTH: 12
+    D_STATE: 16
+    D_CONV: 4
+    EXPAND: 2
+    DROPOUT: 0.1
+    MLP_RATIO: 2
+    DROP_PATH_RATE: 0.1
+    CROSS_ATTN_HEADS: 4
+    SPLIT_MANIFESTS:
+    - /home/user/24020695/PreprocessedData/splits/UBFC-rPPG_intra_manifest.json
+    WEIGHT_DECAY: 0.0005
+    GRAD_CLIP: 1.0
+    LOSS:
+      PEARSON_WEIGHT: 1.0
+      WAVE_WEIGHT: 0.5
+      FREQUENCY_WEIGHT: 0.1
+      MIN_HZ: 0.7
+      MAX_HZ: 3.0
+      TYPE: rhythmmamba
+      RM_TIME_WEIGHT: 0.2
+      RM_FREQUENCY_WEIGHT: 1.0
+INFERENCE:
+  BATCH_SIZE: 4
+  EVALUATION_METHOD: FFT
+  EVALUATION_WINDOW:
+    USE_SMALLER_WINDOW: false
+    WINDOW_SIZE: 10
+  MODEL_PATH: ''

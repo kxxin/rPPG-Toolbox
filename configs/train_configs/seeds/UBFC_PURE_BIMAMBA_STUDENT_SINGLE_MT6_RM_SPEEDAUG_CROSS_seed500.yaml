@@ -1,0 +1,176 @@
+BASE:
+- ''
+DEVICE: cuda:0
+DISTILL:
+  FEATURE:
+    AT_WEIGHT: 0.0
+    FINAL_WEIGHT: 0.0
+    HINT_WEIGHT: 0.0
+    TSM_WEIGHT: 0.0
+  TEACHER_CHECKPOINT: ''
+  TEACHER_CONFIG: ''
+  WEIGHT: 0.5
+  TEACHER_RUNS:
+  - runs/exp/cross_ubfc2pure_dualphysmamba_rm_speedaug
+  - runs/exp/cross_ubfc2pure_dualphysmamba_rm_speedaug_seed200
+  - runs/exp/cross_ubfc2pure_dualphysmamba_rm_speedaug_seed300
+  - runs/exp/cross_ubfc2pure_rhythmmamba_rm_speedaug
+  - runs/exp/cross_ubfc2pure_rhythmmamba_rm_speedaug_seed200
+  - runs/exp/cross_ubfc2pure_rhythmmamba_rm_speedaug_seed300
+INFERENCE:
+  BATCH_SIZE: 4
+  EVALUATION_METHOD: FFT
+  EVALUATION_WINDOW:
+    USE_SMALLER_WINDOW: false
+    WINDOW_SIZE: 10
+  MODEL_PATH: ''
+LOG:
+  PATH: runs/exp/cross_ubfc2pure_student6_single_mtkd6_rm_speedaug_seed500
+MODEL:
+  BIMAMBAPHYS:
+    CROSS_ATTN_HEADS: 4
+    DEPTH: 6
+    DIM: 64
+    DROPOUT: 0.1
+    DROP_PATH_RATE: 0.1
+    DUAL_PATH: true
+    D_CONV: 4
+    D_STATE: 16
+    EXPAND: 2
+    GRAD_CLIP: 1.0
+    LOSS:
+      FREQUENCY_WEIGHT: 0.1
+      MAX_HZ: 3.0
+      MIN_HZ: 0.7
+      PEARSON_WEIGHT: 1.0
+      RM_FREQUENCY_WEIGHT: 1.0
+      RM_TIME_WEIGHT: 0.2
+      TYPE: rhythmmamba
+      WAVE_WEIGHT: 0.5
+    MLP_RATIO: 2
+    NOISE_PATH: false
+    SPLIT_MANIFESTS:
+    - /home/user/24020695/PreprocessedData/splits/UBFC-rPPG_cross_source_manifest.json
+    - /home/user/24020695/PreprocessedData/splits/PURE_cross_target_manifest.json
+    STAGE1_EPOCHS: 0
+    WEIGHT_DECAY: 0.0005
+  NAME: BiMambaPhysKD
+NUM_OF_GPU_TRAIN: 1
+NUM_WORKERS: 4
+TEST:
+  DATA:
+    BEGIN: 0.72
+    CACHED_PATH: /home/user/24020695/PreprocessedData
+    DATASET: PURE
+    DATA_FORMAT: NCDHW
+    DATA_PATH: /home/user/24020695/data/PURE
+    DO_PREPROCESS: false
+    END: 1.0
+    EXP_DATA_NAME: PURE_128_c160_std
+    FILE_LIST_PATH: /home/user/24020695/PreprocessedData/splits/PURE_cross_target_test.csv
+    FS: 30
+    PREPROCESS:
+      CHUNK_LENGTH: 160
+      CROP_FACE:
+        BACKEND: HC
+        DETECTION:
+          DO_DYNAMIC_DETECTION: false
+          DYNAMIC_DETECTION_FREQUENCY: 30
+          USE_MEDIAN_FACE_BOX: false
+        DO_CROP_FACE: true
+        LARGE_BOX_COEF: 1.5
+        USE_LARGE_FACE_BOX: true
+      DATA_AUG:
+      - None
+      DATA_TYPE:
+      - Standardized
+      DO_CHUNK: true
+      LABEL_TYPE: Standardized
+      RESIZE:
+        H: 128
+        W: 128
+  METRICS:
+  - MAE
+  - RMSE
+  - MAPE
+  - Pearson
+  - SNR
+  - BA
+  USE_LAST_EPOCH: false
+TOOLBOX_MODE: train_and_test
+TRAIN:
+  BATCH_SIZE: 4
+  DATA:
+    BEGIN: 0.0
+    CACHED_PATH: /home/user/24020695/PreprocessedData
+    DATASET: UBFC-rPPG
+    DATA_FORMAT: NCDHW
+    DATA_PATH: /home/user/24020695/data/UBFC-rPPG
+    DO_PREPROCESS: false
+    END: 0.72
+    EXP_DATA_NAME: experiment00
+    FILE_LIST_PATH: /home/user/24020695/PreprocessedData/splits/UBFC-rPPG_cross_source_train.csv
+    FS: 30
+    PREPROCESS:
+      CHUNK_LENGTH: 160
+      CROP_FACE:
+        BACKEND: HC
+        DETECTION:
+          DO_DYNAMIC_DETECTION: false
+          DYNAMIC_DETECTION_FREQUENCY: 30
+          USE_MEDIAN_FACE_BOX: false
+        DO_CROP_FACE: true
+        LARGE_BOX_COEF: 1.5
+        USE_LARGE_FACE_BOX: true
+      DATA_AUG:
+      - None
+      DATA_TYPE:
+      - Standardized
+      DO_CHUNK: true
+      LABEL_TYPE: Standardized
+      RESIZE:
+        H: 128
+        W: 128
+  EPOCHS: 30
+  LR: 3e-4
+  MODEL_FILE_NAME: UBFC_PURE_BiMambaPhys_StudentSingleMT6RMSpeedAugCross
+  PLOT_LOSSES_AND_LR: true
+  SPEED_AUG:
+    ENABLE: true
+    MAX_FACTOR: 2.2
+    MIN_FACTOR: 0.5
+    PROB: 0.5
+    TARGET_HR_MAX: 160.0
+    TARGET_HR_MIN: 40.0
+VALID:
+  DATA:
+    BEGIN: 0.0
+    CACHED_PATH: /home/user/24020695/PreprocessedData
+    DATASET: UBFC-rPPG
+    DATA_FORMAT: NCDHW
+    DATA_PATH: /home/user/24020695/data/UBFC-rPPG
+    DO_PREPROCESS: false
+    END: 0.72
+    EXP_DATA_NAME: experiment00
+    FILE_LIST_PATH: /home/user/24020695/PreprocessedData/splits/UBFC-rPPG_cross_source_valid.csv
+    FS: 30
+    PREPROCESS:
+      CHUNK_LENGTH: 160
+      CROP_FACE:
+        BACKEND: HC
+        DETECTION:
+          DO_DYNAMIC_DETECTION: false
+          DYNAMIC_DETECTION_FREQUENCY: 30
+          USE_MEDIAN_FACE_BOX: false
+        DO_CROP_FACE: true
+        LARGE_BOX_COEF: 1.5
+        USE_LARGE_FACE_BOX: true
+      DATA_AUG:
+      - None
+      DATA_TYPE:
+      - Standardized
+      DO_CHUNK: true
+      LABEL_TYPE: Standardized
+      RESIZE:
+        H: 128
+        W: 128

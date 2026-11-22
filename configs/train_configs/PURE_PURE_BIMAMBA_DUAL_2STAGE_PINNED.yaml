@@ -1,0 +1,107 @@
+# PURE intra-dataset, pinned split (DualPhysMamba Sec. 4.3): subjects 1-6 train, 7-10 test.
+# Cache from tools/bimamba/preprocess_only.py; splits from make_pinned_split.py --dataset PURE.
+# Everything else identical to the UBFC-rPPG pinned config of the same model.
+BASE: ['']
+TOOLBOX_MODE: train_and_test
+TRAIN:
+  BATCH_SIZE: 4
+  EPOCHS: 30
+  LR: 3e-4
+  MODEL_FILE_NAME: PURE_PURE_BiMambaPhys_Dual2StagePinned
+  PLOT_LOSSES_AND_LR: True
+  DATA:
+    FS: 30
+    DATASET: PURE
+    DO_PREPROCESS: False
+    DATA_FORMAT: NCDHW
+    DATA_PATH: /home/user/24020695/data/PURE  # raw may be deleted; must stay non-empty
+    CACHED_PATH: /home/user/24020695/PreprocessedData
+    FILE_LIST_PATH: /home/user/24020695/PreprocessedData/splits/PURE_intra_train.csv  # pinned: subjects 1-6
+    EXP_DATA_NAME: PURE_128_c160_std
+    BEGIN: 0.0
+    END: 0.72
+    PREPROCESS:
+      DATA_TYPE: ['Standardized']
+      DATA_AUG: ['None']
+      LABEL_TYPE: Standardized
+      DO_CHUNK: True
+      CHUNK_LENGTH: 160
+      CROP_FACE:
+        DO_CROP_FACE: True
+        BACKEND: HC
+        USE_LARGE_FACE_BOX: True
+        LARGE_BOX_COEF: 1.5
+        DETECTION:
+          DO_DYNAMIC_DETECTION: False
+          DYNAMIC_DETECTION_FREQUENCY: 30
+          USE_MEDIAN_FACE_BOX: False
+      RESIZE:
+        H: 128
+        W: 128
+TEST:
+  METRICS: ['MAE', 'RMSE', 'MAPE', 'Pearson', 'SNR', 'BA']
+  USE_LAST_EPOCH: True
+  DATA:
+    FS: 30
+    DATASET: PURE
+    DO_PREPROCESS: False
+    DATA_FORMAT: NCDHW
+    DATA_PATH: /home/user/24020695/data/PURE  # raw may be deleted; must stay non-empty
+    CACHED_PATH: /home/user/24020695/PreprocessedData
+    FILE_LIST_PATH: /home/user/24020695/PreprocessedData/splits/PURE_intra_test.csv  # pinned: subjects 7-10
+    EXP_DATA_NAME: PURE_128_c160_std
+    BEGIN: 0.72
+    END: 1.0
+    PREPROCESS:
+      DATA_TYPE: ['Standardized']
+      DATA_AUG: ['None']
+      LABEL_TYPE: Standardized
+      DO_CHUNK: True
+      CHUNK_LENGTH: 160
+      CROP_FACE:
+        DO_CROP_FACE: True
+        BACKEND: HC
+        USE_LARGE_FACE_BOX: True
+        LARGE_BOX_COEF: 1.5
+        DETECTION:
+          DO_DYNAMIC_DETECTION: False
+          DYNAMIC_DETECTION_FREQUENCY: 30
+          USE_MEDIAN_FACE_BOX: False
+      RESIZE:
+        H: 128
+        W: 128
+DEVICE: cuda:0
+NUM_OF_GPU_TRAIN: 1
+NUM_WORKERS: 4
+LOG:
+  PATH: runs/exp/pure_pinned_dual12_2stage
+MODEL:
+  NAME: BiMambaPhys
+  BIMAMBAPHYS:
+    DUAL_PATH: True
+    STAGE1_EPOCHS: 15  # DualPhysMamba paper: 15 for UBFC-rPPG/PURE, 18 for MMPD; total 30
+    DIM: 64
+    DEPTH: 12  # Per path: 24 blocks / 48 independent Mamba modules total.
+    D_STATE: 16
+    D_CONV: 4
+    EXPAND: 2
+    DROPOUT: 0.1
+    MLP_RATIO: 2
+    DROP_PATH_RATE: 0.1
+    CROSS_ATTN_HEADS: 4
+    SPLIT_MANIFESTS: ['/home/user/24020695/PreprocessedData/splits/PURE_intra_manifest.json']
+    WEIGHT_DECAY: 0.0005
+    GRAD_CLIP: 1.0
+    LOSS:
+      PEARSON_WEIGHT: 1.0
+      WAVE_WEIGHT: 0.5
+      FREQUENCY_WEIGHT: 0.1
+      MIN_HZ: 0.7
+      MAX_HZ: 3.0
+INFERENCE:
+  BATCH_SIZE: 4
+  EVALUATION_METHOD: FFT
+  EVALUATION_WINDOW:
+    USE_SMALLER_WINDOW: False
+    WINDOW_SIZE: 10
+  MODEL_PATH: ''

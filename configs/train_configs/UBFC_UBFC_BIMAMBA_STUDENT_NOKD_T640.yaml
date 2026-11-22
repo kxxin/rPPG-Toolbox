@@ -1,0 +1,238 @@
+# Generated from the previous no-KD resolved config.
+BASE:
+- ''
+DEVICE: cuda:0
+DISTILL:
+  TEACHER_CHECKPOINT: runs/exp/experiment01/experiment00/PreTrainedModels/UBFC_UBFC_BiMambaPhys_Dual_Epoch29.pth
+  TEACHER_CONFIG: runs/exp/experiment01/experiment00/PreTrainedModels/resolved_config.yaml
+  WEIGHT: 0.0
+INFERENCE:
+  BATCH_SIZE: 4
+  EVALUATION_METHOD: FFT
+  EVALUATION_WINDOW:
+    USE_SMALLER_WINDOW: false
+    WINDOW_SIZE: 10
+  MODEL_PATH: ''
+LOG:
+  PATH: runs/exp/bimamba_student6_nokd_t640
+MODEL:
+  BIGSMALL:
+    FRAME_DEPTH: 3
+  BIMAMBAPHYS:
+    CROSS_ATTN_HEADS: 4
+    DEPTH: 6
+    DIM: 64
+    DROPOUT: 0.1
+    DROP_PATH_RATE: 0.1
+    DUAL_PATH: true
+    D_CONV: 4
+    D_STATE: 16
+    EXPAND: 2
+    GRAD_CLIP: 1.0
+    LOSS:
+      FREQUENCY_WEIGHT: 0.1
+      MAX_HZ: 3.0
+      MIN_HZ: 0.7
+      PEARSON_WEIGHT: 1.0
+      WAVE_WEIGHT: 0.5
+    MLP_RATIO: 2
+    WEIGHT_DECAY: 0.0005
+  DROP_RATE: 0.0
+  EFFICIENTPHYS:
+    FRAME_DEPTH: 10
+  FactorizePhys:
+    CHANNELS: 3
+    FRAME_NUM: 160
+    MD_FSAM: false
+    MD_INFERENCE: true
+    MD_R: 1
+    MD_RESIDUAL: true
+    MD_S: 1
+    MD_STEPS: 4
+    MD_TRANSFORM: T_KAB
+    MD_TYPE: NMF
+    TYPE: Standard
+  NAME: BiMambaPhysKD
+  PHYSFORMER:
+    DIM: 96
+    FF_DIM: 144
+    NUM_HEADS: 4
+    NUM_LAYERS: 12
+    PATCH_SIZE: 4
+    THETA: 0.7
+  PHYSNET:
+    FRAME_NUM: 64
+  RESUME: ''
+  TSCAN:
+    FRAME_DEPTH: 10
+  iBVPNet:
+    CHANNELS: 3
+    FRAME_NUM: 160
+NUM_OF_GPU_TRAIN: 1
+TEST:
+  DATA:
+    BEGIN: 0.72
+    CACHED_PATH: /home/user/24020695/PreprocessedData
+    DATASET: UBFC-rPPG
+    DATA_FORMAT: NCDHW
+    DATA_PATH: /home/user/24020695/data/UBFC-rPPG
+    DO_PREPROCESS: false
+    END: 1.0
+    EXP_DATA_NAME: experiment00
+    FILE_LIST_PATH: /home/user/24020695/PreprocessedData/experiment00_0.72_1.0.csv
+    FILTERING:
+      EXCLUSION_LIST:
+      - ''
+      SELECT_TASKS: false
+      TASK_LIST:
+      - ''
+      USE_EXCLUSION_LIST: false
+    FOLD:
+      FOLD_NAME: ''
+      FOLD_PATH: ''
+    FS: 30
+    INFO:
+      EXERCISE:
+      - true
+      GENDER:
+      - ''
+      GLASSER:
+      - true
+      HAIR_COVER:
+      - true
+      LIGHT:
+      - ''
+      MAKEUP:
+      - true
+      MOTION:
+      - ''
+      SKIN_COLOR:
+      - 1
+    PREPROCESS:
+      BIGSMALL:
+        BIG_DATA_TYPE:
+        - ''
+        RESIZE:
+          BIG_H: 144
+          BIG_W: 144
+          SMALL_H: 9
+          SMALL_W: 9
+        SMALL_DATA_TYPE:
+        - ''
+      CHUNK_LENGTH: 160
+      CROP_FACE:
+        BACKEND: HC
+        DETECTION:
+          DO_DYNAMIC_DETECTION: false
+          DYNAMIC_DETECTION_FREQUENCY: 30
+          USE_MEDIAN_FACE_BOX: false
+        DO_CROP_FACE: true
+        LARGE_BOX_COEF: 1.5
+        USE_LARGE_FACE_BOX: true
+      DATA_AUG:
+      - None
+      DATA_TYPE:
+      - Standardized
+      DO_CHUNK: true
+      IBVP:
+        DATA_MODE: RGB
+      LABEL_TYPE: Standardized
+      RESIZE:
+        H: 128
+        W: 128
+      USE_PSUEDO_PPG_LABEL: false
+  METRICS:
+  - MAE
+  - RMSE
+  - MAPE
+  - Pearson
+  - SNR
+  - BA
+  USE_LAST_EPOCH: true
+TOOLBOX_MODE: train_and_test
+TRAIN:
+  BATCH_SIZE: 4
+  DATA:
+    BEGIN: 0.0
+    CACHED_PATH: /home/user/24020695/PreprocessedData
+    DATASET: UBFC-rPPG
+    DATA_FORMAT: NCDHW
+    DATA_PATH: /home/user/24020695/data/UBFC-rPPG
+    DO_PREPROCESS: false
+    END: 0.72
+    EXP_DATA_NAME: experiment00
+    FILE_LIST_PATH: /home/user/24020695/PreprocessedData/experiment00_0.0_0.72.csv
+    FILTERING:
+      EXCLUSION_LIST:
+      - ''
+      SELECT_TASKS: false
+      TASK_LIST:
+      - ''
+      USE_EXCLUSION_LIST: false
+    FOLD:
+      FOLD_NAME: ''
+      FOLD_PATH: ''
+    FS: 30
+    INFO:
+      EXERCISE:
+      - true
+      GENDER:
+      - ''
+      GLASSER:
+      - true
+      HAIR_COVER:
+      - true
+      LIGHT:
+      - ''
+      MAKEUP:
+      - true
+      MOTION:
+      - ''
+      SKIN_COLOR:
+      - 1
+    PREPROCESS:
+      BIGSMALL:
+        BIG_DATA_TYPE:
+        - ''
+        RESIZE:
+          BIG_H: 144
+          BIG_W: 144
+          SMALL_H: 9
+          SMALL_W: 9
+        SMALL_DATA_TYPE:
+        - ''
+      CHUNK_LENGTH: 160
+      CROP_FACE:
+        BACKEND: HC
+        DETECTION:
+          DO_DYNAMIC_DETECTION: false
+          DYNAMIC_DETECTION_FREQUENCY: 30
+          USE_MEDIAN_FACE_BOX: false
+        DO_CROP_FACE: true
+        LARGE_BOX_COEF: 1.5
+        USE_LARGE_FACE_BOX: true
+      DATA_AUG:
+      - None
+      DATA_TYPE:
+      - Standardized
+      DO_CHUNK: true
+      IBVP:
+        DATA_MODE: RGB
+      LABEL_TYPE: Standardized
+      RESIZE:
+        H: 128
+        W: 128
+      USE_PSUEDO_PPG_LABEL: false
+  EPOCHS: 30
+  LR: 0.0003
+  MODEL_FILE_NAME: UBFC_UBFC_BiMambaPhys_StudentNoKD_T640
+  OPTIMIZER:
+    BETAS:
+    - 0.9
+    - 0.999
+    EPS: 0.0001
+    MOMENTUM: 0.9
+  PLOT_LOSSES_AND_LR: true
+  SEQUENCE_LENGTH: 640
+  SEQUENCE_REFERENCE_BATCH_SIZE: 16
+NUM_WORKERS: 4

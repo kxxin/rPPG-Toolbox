@@ -1,6 +1,7 @@
 """ The main function of rPPG deep learning pipeline."""
 
 import argparse
+import os
 import random
 import time
 
@@ -12,7 +13,10 @@ from neural_methods import trainer
 from unsupervised_methods.unsupervised_predictor import unsupervised_predict
 from torch.utils.data import DataLoader
 
-RANDOM_SEED = 100
+# Seed override for repeat runs: RPPG_SEED=200 python main.py --config_file ...
+# (default 100 keeps every earlier run reproducible).
+RANDOM_SEED = int(os.environ.get('RPPG_SEED', '100'))
+print('RANDOM_SEED =', RANDOM_SEED, flush=True)
 torch.manual_seed(RANDOM_SEED)
 torch.cuda.manual_seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
@@ -83,6 +87,10 @@ def train_and_test(config, data_loader_dict):
         model_trainer = trainer.PhysMambaTrainer.PhysMambaTrainer(config, data_loader_dict)
     elif config.MODEL.NAME == 'RhythmFormer':
         model_trainer = trainer.RhythmFormerTrainer.RhythmFormerTrainer(config, data_loader_dict)
+    elif config.MODEL.NAME == "BiMambaPhysKD":
+        model_trainer = trainer.BiMambaPhysKDTrainer.BiMambaPhysKDTrainer(config, data_loader_dict)
+    elif config.MODEL.NAME == "BiMambaPhys":
+        model_trainer = trainer.BiMambaPhysTrainer.BiMambaPhysTrainer(config, data_loader_dict)
     else:
         raise ValueError('Your Model is Not Supported  Yet!')
     model_trainer.train(data_loader_dict)
@@ -111,6 +119,10 @@ def test(config, data_loader_dict):
         model_trainer = trainer.PhysMambaTrainer.PhysMambaTrainer(config, data_loader_dict)
     elif config.MODEL.NAME == 'RhythmFormer':
         model_trainer = trainer.RhythmFormerTrainer.RhythmFormerTrainer(config, data_loader_dict)
+    elif config.MODEL.NAME == "BiMambaPhysKD":
+        model_trainer = trainer.BiMambaPhysKDTrainer.BiMambaPhysKDTrainer(config, data_loader_dict)
+    elif config.MODEL.NAME == "BiMambaPhys":
+        model_trainer = trainer.BiMambaPhysTrainer.BiMambaPhysTrainer(config, data_loader_dict)
     else:
         raise ValueError('Your Model is Not Supported  Yet!')
     model_trainer.test(data_loader_dict)
@@ -189,14 +201,9 @@ if __name__ == "__main__":
                 data_path=config.TRAIN.DATA.DATA_PATH,
                 config_data=config.TRAIN.DATA,
                 device=config.DEVICE)
-            data_loader_dict['train'] = DataLoader(
-                dataset=train_data_loader,
-                num_workers=16,
-                batch_size=config.TRAIN.BATCH_SIZE,
-                shuffle=True,
-                worker_init_fn=seed_worker,
-                generator=train_generator
-            )
+            from dataset.data_loader.ConsecutiveClipDataset import build_training_loader
+            data_loader_dict['train'] = build_training_loader(
+                train_data_loader, config, seed_worker, train_generator, RANDOM_SEED)
         else:
             data_loader_dict['train'] = None
 
@@ -223,6 +230,9 @@ if __name__ == "__main__":
             valid_loader = data_loader.LADHLoader.LADHLoader
         elif config.VALID.DATA.DATASET == "SUMS":
             valid_loader = data_loader.SUMSLoader.SUMSLoader
+        elif not config.VALID.DATA.DATASET and config.TEST.USE_LAST_EPOCH:
+            # No validation split (train/test only, last epoch tested): no valid loader is built below.
+            valid_loader = None
         elif config.VALID.DATA.DATASET is None and not config.TEST.USE_LAST_EPOCH:
             raise ValueError("Validation dataset not specified despite USE_LAST_EPOCH set to False!")
         else:
@@ -239,7 +249,7 @@ if __name__ == "__main__":
                 device=config.DEVICE)
             data_loader_dict["valid"] = DataLoader(
                 dataset=valid_data,
-                num_workers=16,
+                num_workers=config.NUM_WORKERS,
                 batch_size=config.TRAIN.BATCH_SIZE,  # batch size for val is the same as train
                 shuffle=False,
                 worker_init_fn=seed_worker,
@@ -289,7 +299,7 @@ if __name__ == "__main__":
                 device=config.DEVICE)
             data_loader_dict["test"] = DataLoader(
                 dataset=test_data,
-                num_workers=16,
+                num_workers=config.NUM_WORKERS,
                 batch_size=config.INFERENCE.BATCH_SIZE,
                 shuffle=False,
                 worker_init_fn=seed_worker,
@@ -325,7 +335,7 @@ if __name__ == "__main__":
             device=config.DEVICE)
         data_loader_dict["unsupervised"] = DataLoader(
             dataset=unsupervised_data,
-            num_workers=16,
+            num_workers=config.NUM_WORKERS,
             batch_size=1,
             shuffle=False,
             worker_init_fn=seed_worker,

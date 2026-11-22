@@ -20,6 +20,32 @@ _C.TOOLBOX_MODE = ""
 _C.TRAIN = CN()
 _C.TRAIN.EPOCHS = 50
 _C.TRAIN.BATCH_SIZE = 4
+_C.TRAIN.SEQUENCE_LENGTH = 0  # 0 preserves the original cached-clip training.
+_C.TRAIN.SEQUENCE_REFERENCE_BATCH_SIZE = 16
+# Training-only speed (heart-rate) augmentation, dataset/data_loader/SpeedAugDataset.py.
+# With probability PROB a clip and its label are resampled in time towards a target HR drawn
+# uniformly from [TARGET_HR_MIN, TARGET_HR_MAX] bpm (factor clipped to [MIN_FACTOR, MAX_FACTOR]).
+_C.TRAIN.SPEED_AUG = CN()
+_C.TRAIN.SPEED_AUG.ENABLE = False
+_C.TRAIN.SPEED_AUG.PROB = 0.5
+_C.TRAIN.SPEED_AUG.TARGET_HR_MIN = 40.0
+_C.TRAIN.SPEED_AUG.TARGET_HR_MAX = 160.0
+_C.TRAIN.SPEED_AUG.MIN_FACTOR = 0.5
+_C.TRAIN.SPEED_AUG.MAX_FACTOR = 2.2
+# 'clip_target' (default, earlier runs): target HR ~ U[MIN,MAX], factor = target/clip HR clipped to the factor range.
+# 'balanced': target HR ~ U[MIN,MAX] and a training clip that can reach it within the factor range is
+#             drawn (the indexed clip when it can), so augmented samples are uniform over the HR range.
+_C.TRAIN.SPEED_AUG.MODE = 'clip_target'
+# RhythmMamba's training augmentation (its TRAIN.AUG: 1), dataset/data_loader/RhythmMambaAugDataset.py:
+# with prob PROB, clip HR > HI_BPM -> 2x slow-down, HR < LO_BPM -> 2x speed-up; horizontal flip with FLIP_PROB.
+# MODE 'per_sample' (intended) or 'reference' (exact port of the reference's batch-level indexing).
+_C.TRAIN.RM_AUG = CN()
+_C.TRAIN.RM_AUG.ENABLE = False
+_C.TRAIN.RM_AUG.PROB = 0.5
+_C.TRAIN.RM_AUG.FLIP_PROB = 0.5
+_C.TRAIN.RM_AUG.HI_BPM = 90.0
+_C.TRAIN.RM_AUG.LO_BPM = 75.0
+_C.TRAIN.RM_AUG.MODE = 'per_sample'
 _C.TRAIN.LR = 1e-4
 # Optimizer
 _C.TRAIN.OPTIMIZER = CN()
@@ -348,6 +374,72 @@ _C.MODEL.PHYSFORMER.NUM_LAYERS = 12
 _C.MODEL.PHYSFORMER.THETA = 0.7
 
 # -----------------------------------------------------------------------------
+# Model Settings for BiMambaPhys
+# -----------------------------------------------------------------------------
+_C.MODEL.BIMAMBAPHYS = CN()
+_C.MODEL.BIMAMBAPHYS.DIM = 64
+_C.MODEL.BIMAMBAPHYS.DEPTH = 2
+_C.MODEL.BIMAMBAPHYS.D_STATE = 16
+_C.MODEL.BIMAMBAPHYS.D_CONV = 4
+_C.MODEL.BIMAMBAPHYS.EXPAND = 2
+_C.MODEL.BIMAMBAPHYS.DROPOUT = 0.1
+_C.MODEL.BIMAMBAPHYS.DUAL_PATH = False
+_C.MODEL.BIMAMBAPHYS.MLP_RATIO = 2
+_C.MODEL.BIMAMBAPHYS.DROP_PATH_RATE = 0.1
+_C.MODEL.BIMAMBAPHYS.CROSS_ATTN_HEADS = 4
+_C.MODEL.BIMAMBAPHYS.WEIGHT_DECAY = 0.0005
+_C.MODEL.BIMAMBAPHYS.GRAD_CLIP = 1.0
+# DualPhysMamba two-stage schedule: epochs [0, STAGE1_EPOCHS) train the rPPG path only.
+# 0 keeps single-stage joint training (previous behaviour).
+_C.MODEL.BIMAMBAPHYS.STAGE1_EPOCHS = 0
+# False = single-path model (no noise path / cross-attention); requires DUAL_PATH=True
+# (same fusion stem + spatial attention) and STAGE1_EPOCHS=0.
+_C.MODEL.BIMAMBAPHYS.NOISE_PATH = True
+# Architecture trained by BiMambaPhysTrainer (same data, loss, optimiser, protocol for all):
+#   'bimamba'        our model (default; every earlier config)
+#   'dualphysmamba'  reference DualPhysMamba reproduction (unidirectional Mamba), neural_methods/model/reference
+#   'bidualphysmamba' the DualPhysMamba reproduction with bidirectional Mamba in every block
+#                    (reference/BiDualPhysMamba.py); with NOISE_PATH False it is single-path (rPPG path only)
+#   'rhythmmamba'    reference RhythmMamba, neural_methods/model/reference
+#   'rhythmformer'   the toolbox's RhythmFormer (neural_methods/model/RhythmFormer.py, unmodified; fixed size,
+#                    needs 160-frame 128x128 clips)
+# For the reference models DIM = embed_dim and DEPTH = number of Mamba blocks (per path); D_STATE/D_CONV/
+# EXPAND/DROPOUT are ignored (the reference code fixes d_state 48, d_conv 4, expand 2).
+_C.MODEL.BIMAMBAPHYS.ARCH = 'bimamba'
+# Pinned-split manifests from tools/bimamba/make_pinned_split.py. When set, the trainer
+# verifies the loaded subjects/clips match and refuses to run otherwise.
+_C.MODEL.BIMAMBAPHYS.SPLIT_MANIFESTS = []
+_C.MODEL.BIMAMBAPHYS.LOSS = CN()
+_C.MODEL.BIMAMBAPHYS.LOSS.PEARSON_WEIGHT = 1.0
+_C.MODEL.BIMAMBAPHYS.LOSS.WAVE_WEIGHT = 0.5
+_C.MODEL.BIMAMBAPHYS.LOSS.FREQUENCY_WEIGHT = 0.1
+_C.MODEL.BIMAMBAPHYS.LOSS.MIN_HZ = 0.7
+_C.MODEL.BIMAMBAPHYS.LOSS.MAX_HZ = 3.0
+# 'bimamba' = PEARSON_WEIGHT*Pearson + WAVE_WEIGHT*L1 + FREQUENCY_WEIGHT*spectral JS (default, earlier runs)
+# 'rhythmmamba' = RM_TIME_WEIGHT*NegPearson + RM_FREQUENCY_WEIGHT*frequency cross-entropy (RhythmMamba Hybrid_Loss)
+# 'bimamba' | 'rhythmmamba' | 'combined' (= bimamba terms + RM_FREQUENCY_WEIGHT x RhythmMamba frequency CE)
+_C.MODEL.BIMAMBAPHYS.LOSS.TYPE = 'bimamba'
+_C.MODEL.BIMAMBAPHYS.LOSS.RM_TIME_WEIGHT = 0.2
+_C.MODEL.BIMAMBAPHYS.LOSS.RM_FREQUENCY_WEIGHT = 1.0
+
+# Waveform-output distillation: teacher is needed only during student training.
+_C.DISTILL = CN()
+_C.DISTILL.WEIGHT = 0.5
+_C.DISTILL.TEACHER_CHECKPOINT = ''
+_C.DISTILL.TEACHER_CONFIG = ''
+# Multi-teacher output KD: list of teacher RUN folders (LOG.PATH of each trained teacher, e.g.
+# runs/exp/cross_ubfc2pure_dualphysmamba_rm_speedaug_seed200). When non-empty, TEACHER_CHECKPOINT/CONFIG are
+# ignored; each teacher is loaded at the checkpoint it was tested with (last epoch, or its best-validation
+# epoch from checkpoint_selection.json) and the KD target is the mean of the teachers' z-scored waveforms.
+_C.DISTILL.TEACHER_RUNS = []
+# Feature-level KD (neural_methods/loss/FeatureDistillationLoss.py); all 0 = off. Independent of WEIGHT.
+_C.DISTILL.FEATURE = CN()
+_C.DISTILL.FEATURE.AT_WEIGHT = 0.0      # attention transfer on the spatial mask
+_C.DISTILL.FEATURE.HINT_WEIGHT = 0.0    # rPPG-path block hints (student k <- teacher 2k), 1 - cosine
+_C.DISTILL.FEATURE.FINAL_WEIGHT = 0.0   # teacher 'clean' feature -> student final rPPG feature, 1 - cosine
+_C.DISTILL.FEATURE.TSM_WEIGHT = 0.0     # temporal self-similarity matrices, MSE
+
+# -----------------------------------------------------------------------------
 # Inference settings
 # -----------------------------------------------------------------------------
 _C.INFERENCE = CN()
@@ -357,12 +449,16 @@ _C.INFERENCE.EVALUATION_WINDOW = CN()
 _C.INFERENCE.EVALUATION_WINDOW.USE_SMALLER_WINDOW = False
 _C.INFERENCE.EVALUATION_WINDOW.WINDOW_SIZE = 10
 _C.INFERENCE.MODEL_PATH = ''
+# Also report the RhythmMamba/DualPhysMamba paper protocol (Welch HR, 0.75-2.5 Hz, SNR 20log10)
+# in BiMambaPhysTrainer.test; the toolbox metrics are still printed unchanged.
+_C.INFERENCE.PAPER_PROTOCOL = True
 
 # -----------------------------------------------------------------------------
 # Device settings
 # -----------------------------------------------------------------------------
 _C.DEVICE = "cuda:0"
 _C.NUM_OF_GPU_TRAIN = 1
+_C.NUM_WORKERS = 8
 
 # -----------------------------------------------------------------------------
 # Log settings

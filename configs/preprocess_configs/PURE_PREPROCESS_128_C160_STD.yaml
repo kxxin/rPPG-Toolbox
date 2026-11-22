@@ -1,0 +1,40 @@
+# Preprocess-only config for tools/bimamba/preprocess_only.py (no training).
+# Whole PURE dataset once (BEGIN 0, END 1); settings identical to the UBFC-rPPG cache and
+# to RhythmMamba/DualPhysMamba: first-frame HC face box x1.5, 128x128, 160-frame chunks,
+# Standardized frames and labels. Cache -> CACHED_PATH/EXP_DATA_NAME (float32 via the script).
+# FILE_LIST_PATH must stay a directory here (the toolbox rejects a .csv with DO_PREPROCESS True).
+BASE: ['']
+TOOLBOX_MODE: train_and_test
+TRAIN:
+  DATA:
+    FS: 30
+    DATASET: PURE
+    DO_PREPROCESS: True
+    DATA_FORMAT: NCDHW
+    DATA_PATH: /home/user/24020695/data/PURE   # <-- raw PURE: 01-01/01-01/*.png + 01-01/01-01.json
+    CACHED_PATH: /home/user/24020695/PreprocessedData
+    EXP_DATA_NAME: PURE_128_c160_std
+    BEGIN: 0.0
+    END: 1.0
+    PREPROCESS:
+      DATA_TYPE: ['Standardized']
+      DATA_AUG: ['None']
+      LABEL_TYPE: Standardized
+      DO_CHUNK: True
+      CHUNK_LENGTH: 160
+      CROP_FACE:
+        DO_CROP_FACE: True
+        BACKEND: HC
+        USE_LARGE_FACE_BOX: True
+        LARGE_BOX_COEF: 1.5
+        DETECTION:
+          DO_DYNAMIC_DETECTION: False
+          DYNAMIC_DETECTION_FREQUENCY: 30
+          USE_MEDIAN_FACE_BOX: False
+      RESIZE:
+        H: 128
+        W: 128
+TEST:
+  USE_LAST_EPOCH: True
+LOG:
+  PATH: runs/exp/preprocess_pure
